@@ -1,0 +1,1 @@
+void checkNull(void *address);
