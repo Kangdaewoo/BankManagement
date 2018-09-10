@@ -1,7 +1,7 @@
 typedef struct state {
     int numCommands;
-    char *message;
-    int (*handler) ();
+    const char *message;
+    int (*handler) (int inputFd, int outputFd);
     struct state *previous;
     struct state **next;
 } State;
@@ -36,4 +36,4 @@ typedef struct state {
  * */
 
 void initializeStates();
-void stateMachine();
+void *stateMachine(void *fds);

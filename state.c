@@ -1,10 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "state.h"
 #include "bank.h"
 #include "utils.h"
+
 
 State *welcomeState;
 State *signInState;
@@ -20,7 +22,34 @@ State *signOutState;
 unsigned int branchNumber = 0;
 unsigned int accountNumber;
 
-State *createState(int numCommands, char *message, int (*handler) ()) {
+const int MAX_BUF_LENGTH = 120;
+
+const char *WELCOME_MSG = "Welcome!\nIf you have an account, press 1.\nIf you are new, press 2.\nIf you want to quit, press 0\n";
+const char *INVALID_ACCOUNT_NUM_MSG = "Account number verified.\nMoving onto the main menu.\n";
+const char *INVALID_ACCOUNT_MSG = "It's not a valid account number.\nPlease enter again.\n";
+const char *SIGN_IN_MSG = "Please provide your account number.\n";
+const char *PROVIDE_PASSWORD_MSG = "Please provide password.\n";
+const char *ACCOUNT_CREATED_MSG = "This is your account number: %u\nPlease remember this.\n";
+const char *PROVIDE_NAME_MSG = "Please provide your first and last name.\n";
+const char *MAIN_MSG = "To see your account information, press 1.\nTo deposit, press 2.\nTo withdraw, press 3.\nTo make a transaction, press 4.\nTo view transactions, press 5.\nTo quit, press 6.\n";
+const char *WRONG_PASSWORD_MSG = "Wrong password.\nReturning to the main menu.\n";
+const char *CORRECT_PASSWORD_MSG = "Password correct.\n";
+const char *NOT_ENOUGH_MONEY_MSG = "Sorry, not enough money.\n";
+const char *DEPOSIT_SUCCESSFUL_MSG = "Successfully deposited.\n";
+const char *DEPOSIT_MSG = "Please provide how much you want to deposit.\n";
+const char *WITHDRAW_SUCCESSFUL_MSG = "Successfully withdrawed.\n";
+const char *PROVIDE_HOW_MUCH_TO_SEND_MSG = "Please provide how much you want to send.\n";
+const char *TRANSACTION_SUCCESSFUL_MSG = "Transaction successful.\n";
+const char *TRANSACT_MSG = "Please provide the account number of the customer you want to send to\n";
+const char *NO_TRANSACTIONS_MSG = "You have not made any transactions.\n";
+const char *NO_MORE_TRANSACTIONS_MSG = "\nNo more transactions.\nReturning to the main menu.\n";
+const char *MORE_TRANSACTIONS_MSG = "\nPress 1 to view more transactions or 0 to return to the main menu.\n";
+const char *SIGN_OUT_MSG = "Thank you and have a wonderful day.\n";
+const char *GOOD_BYE_MSG = "Good bye!\n";
+const char *WRONG_COMMAND_MSG = "Wrong command!\n\n";
+const char *LINE_BREAKER_MSG = "\n";
+
+State *createState(int numCommands, const char *message, int (*handler) (int intputFd, int outputFd)) {
     State *newState = malloc(sizeof(State));
     checkNull(newState);
 
@@ -35,60 +64,56 @@ State *createState(int numCommands, char *message, int (*handler) ()) {
 }
 
 void createWelcome() {
-    welcomeState = createState(2, "Welcome!\nIf you have an account, press 1.\nIf you are new, press 2.\nIf you want to quit, press 0\n", NULL);
+    welcomeState = createState(2, WELCOME_MSG, NULL);
 }
 
-int signInHandler() {
+int signInHandler(int inputFd, int outputFd) {
     while (1) {
-        unsigned int temp;
-        scanf("%u", &temp);
+        char buf[MAX_BUF_LENGTH];
+        readFromFd(inputFd, buf, MAX_BUF_LENGTH - 1);
+        unsigned int temp = strtoul(buf, NULL, 10);
         
         if (isValidAccountNumber(temp) == 1) {
-            printf("Account number verified.\nMoving onto the main menu.\n");
+            write(outputFd, INVALID_ACCOUNT_NUM_MSG, strlen(INVALID_ACCOUNT_NUM_MSG));
             accountNumber = temp;
             return 0;
         } 
         
-        printf("It's not a valid account number.\nPlease enter again.\n");
+        write(outputFd, INVALID_ACCOUNT_MSG, strlen(INVALID_ACCOUNT_MSG));
     }
 }
 
 void createSignIn() {
-    signInState = createState(1, "Please provide your account number.\n", signInHandler);
+    signInState = createState(1, SIGN_IN_MSG, signInHandler);
 }
 
-int signUpHandler() {
-    char name[MAX_NAME_LENGTH];
-    char firstName[MAX_NAME_LENGTH];
-    char lastName[MAX_NAME_LENGTH];
-    scanf("%s %s", firstName, lastName);
-
-    strcpy(name, firstName);
-    strcat(name, " ");
-    strcat(name, lastName);
+int signUpHandler(int inputFd, int outputFd) {
+    char name[MAX_BUF_LENGTH];
+    readFromFd(inputFd, name, MAX_BUF_LENGTH - 1);
     
-    printf("Please provide desired password.\n");
-    char password[MAX_NAME_LENGTH];
-    scanf("%s", password);
+    write(outputFd, PROVIDE_PASSWORD_MSG, strlen(PROVIDE_PASSWORD_MSG));
+    char password[MAX_BUF_LENGTH];
+    readFromFd(inputFd, password, MAX_BUF_LENGTH - 1);
 
-    printf("Processing...\n");
     accountNumber = createAccount(name, password, 0);
-    printf("This is your account number: %u\nPlease remember this.\n", accountNumber);
+    char buf[MAX_BUF_LENGTH];
+    sprintf(buf, ACCOUNT_CREATED_MSG, accountNumber);
+    write(outputFd, buf, strlen(buf));
 
     return 0;
 }
 
 void createSignUp() {
-    signUpState = createState(1, "Please provide your first and last name.\n", signUpHandler);
+    signUpState = createState(1, PROVIDE_NAME_MSG, signUpHandler);
 }
 
 void createMain() {
-    mainState = createState(6, "To see your account information, press 1.\nTo deposit, press 2.\nTo withdraw, press 3.\nTo make a transaction, press 4.\nTo view transactions, press 5.\nTo quit, press 6.\n", NULL);
+    mainState = createState(6, MAIN_MSG, NULL);
 }
 
-int displayAccountInfoHandler() {
+int displayAccountInfoHandler(int inputFd, int outputFd) {
     char *accountInfo = getAccountInfo(accountNumber);
-    printf("%s", accountInfo);
+    write(outputFd, accountInfo, strlen(accountInfo));
     free(accountInfo);
     return 0;
 }
@@ -97,50 +122,54 @@ void createDisplayAccountInfo() {
     accountInfoState = createState(1, "", displayAccountInfoHandler);
 }
 
-int depositHandler() {
-    double amount;
-    scanf("%lf", &amount);
+int depositHandler(int inputFd, int outputFd) {
+    char buf[MAX_BUF_LENGTH];
+    readFromFd(inputFd, buf, MAX_BUF_LENGTH - 1);
+    double amount = strtod(buf, NULL);
 
-    char password[MAX_NAME_LENGTH];
-    printf("Please provide the password.\n");
-    scanf("%s", password);
+    char password[MAX_BUF_LENGTH];
+    write(outputFd, PROVIDE_PASSWORD_MSG, strlen(PROVIDE_PASSWORD_MSG));
+    readFromFd(inputFd, password, MAX_BUF_LENGTH - 1);
+
     if (isCorrectPassword(accountNumber, password) == 0) {
-        printf("Wrong password.\nReturning to the main menu.\n");
+        write(outputFd, WRONG_PASSWORD_MSG, strlen(WRONG_PASSWORD_MSG));
         return 0;
     }
-    printf("Password correct.\n");
+    write(outputFd, CORRECT_PASSWORD_MSG, strlen(CORRECT_PASSWORD_MSG));
 
     int result = deposit(accountNumber, branchNumber, amount);
     if (result == -1) {
-        printf("Sorry, not enough money.\n");
+        write(outputFd, NOT_ENOUGH_MONEY_MSG, strlen(NOT_ENOUGH_MONEY_MSG));
     } else {
-        printf("Successfully deposited.\n");
+        write(outputFd, DEPOSIT_SUCCESSFUL_MSG, strlen(DEPOSIT_SUCCESSFUL_MSG));
     }
     return 0;
 }
 
 void createDeposit() {
-    depositState = createState(1, "Please provide how much you want to deposit.\n", depositHandler);
+    depositState = createState(1, DEPOSIT_MSG, depositHandler);
 }
 
-int withdrawHandler() {
-    double amount;
-    scanf("%lf", &amount);
+int withdrawHandler(int inputFd, int outputFd) {
+    char buf[MAX_BUF_LENGTH];
+    readFromFd(inputFd, buf, MAX_BUF_LENGTH - 1);
+    double amount = strtod(buf, NULL);
 
-    char password[MAX_NAME_LENGTH];
-    printf("Please provide the password.\n");
-    scanf("%s", password);
+    write(outputFd, PROVIDE_PASSWORD_MSG, strlen(PROVIDE_PASSWORD_MSG));
+    char password[MAX_BUF_LENGTH];
+    readFromFd(inputFd, password, MAX_BUF_LENGTH - 1);
+
     if (isCorrectPassword(accountNumber, password) == 0) {
-        printf("Wrong password.\nReturning to the main menu.\n");
+        write(outputFd, WRONG_PASSWORD_MSG, strlen(WRONG_PASSWORD_MSG));
         return 0;
     }
-    printf("Password correct.\n");
+    write(outputFd, CORRECT_PASSWORD_MSG, strlen(CORRECT_PASSWORD_MSG));
 
     int result = withdraw(accountNumber, branchNumber, amount);
     if (result == -1) {
-        printf("Sorry, not enough money.\n");
+        write(outputFd, NOT_ENOUGH_MONEY_MSG, strlen(NOT_ENOUGH_MONEY_MSG));
     } else {
-        printf("Successfully withdrawed.\n");
+        write(outputFd, WITHDRAW_SUCCESSFUL_MSG, strlen(WITHDRAW_SUCCESSFUL_MSG));
     }
     return 0;
 }
@@ -149,44 +178,47 @@ void createWithdraw() {
     withdrawState = createState(1, "Please provide how much you want to withdraw.\n", withdrawHandler);
 }
 
-int transactHandler() {
-    unsigned int accountNum;
-    scanf("%u", &accountNum);
+int transactHandler(int inputFd, int outputFd) {
+    char buf[MAX_BUF_LENGTH];
+    readFromFd(inputFd, buf, MAX_BUF_LENGTH - 1);
+    unsigned int accountNum = strtoul(buf, NULL, 10);
 
-    printf("Please provide how much you want to send.\n");
-    double amount;
-    scanf("%lf", &amount);
+    write(outputFd, PROVIDE_HOW_MUCH_TO_SEND_MSG, strlen(PROVIDE_HOW_MUCH_TO_SEND_MSG));
+    readFromFd(inputFd, buf, MAX_BUF_LENGTH - 1);
+    double amount = strtod(buf, NULL);
 
-    char password[MAX_NAME_LENGTH];
-    printf("Please provide the password.\n");
-    scanf("%s", password);
+    char password[MAX_BUF_LENGTH];
+    write(outputFd, PROVIDE_PASSWORD_MSG, strlen(PROVIDE_PASSWORD_MSG));
+    readFromFd(inputFd, password, MAX_BUF_LENGTH - 1);
+
     if (isCorrectPassword(accountNumber, password) == 0) {
-        printf("Wrong password.\nReturning to the main menu.\n");
+        write(outputFd, WRONG_PASSWORD_MSG, strlen(WRONG_PASSWORD_MSG));
         return 0;
     }
-    printf("Password correct.\n");
+    write(outputFd, CORRECT_PASSWORD_MSG, strlen(CORRECT_PASSWORD_MSG));
 
     int result = transact(accountNumber, accountNum, amount);
     if (result == -1) {
-        printf("Sorry, not enough money.\n");
+        write(outputFd, NOT_ENOUGH_MONEY_MSG, strlen(NOT_ENOUGH_MONEY_MSG));
     } else {
-        printf("Transaction successful.\n");
+        write(outputFd, TRANSACTION_SUCCESSFUL_MSG, strlen(TRANSACTION_SUCCESSFUL_MSG));
     }
     return 0;
 }
 
 void createTransact() {
-    transactState = createState(1, "Please provide the account number of the customer you want to send to\n", transactHandler);
+    transactState = createState(1, TRANSACT_MSG, transactHandler);
 }
 
-int viewTransactionsHandler() {
+int viewTransactionsHandler(int inputFd, int outputFd) {
     Transaction *transaction = getTransactions(accountNumber);
     if (transaction == NULL) {
-        printf("You have not made any transactions.\n");
+        write(outputFd, NO_TRANSACTIONS_MSG, strlen(NO_TRANSACTIONS_MSG));
         return 0;
     }
+
     while (1) {
-        printf("%s\n", transaction->memo);
+        write(outputFd, transaction->memo, strlen(transaction->memo));
         if (transaction->from == accountNumber) {
             transaction = transaction->senderParent;
         } else {
@@ -194,13 +226,14 @@ int viewTransactionsHandler() {
         }
 
         if (transaction == NULL) {
-            printf("\nNo more transactions.\nReturning to the main menu.\n");
+            write(outputFd, NO_MORE_TRANSACTIONS_MSG, strlen(NO_MORE_TRANSACTIONS_MSG));
             return 0;
         }
 
-        printf("\nPress 1 to view more transactions or 0 to return to the main menu.\n");
-        int command;
-        scanf("%d", &command);
+        write(outputFd, MORE_TRANSACTIONS_MSG, strlen(MORE_TRANSACTIONS_MSG));
+        char buf[MAX_BUF_LENGTH];
+        readFromFd(inputFd, buf, MAX_BUF_LENGTH - 1);
+        int command = strtol(buf, NULL, 10);
         if (command == 0) {
             return 0;
         }
@@ -212,13 +245,13 @@ void createViewTransactions() {
     viewTransactionsState = createState(1, "", viewTransactionsHandler);
 }
 
-int signOutHandler() {
+int signOutHandler(int inputFd, int outputFd) {
     accountNumber = 0;
     return 0;
 }
 
 void createSignOut() {
-    signOutState = createState(1, "Thank you and have a wonderful day.\n", signOutHandler);
+    signOutState = createState(1, SIGN_OUT_MSG, signOutHandler);
 }
 
 void assignNextStates();
@@ -240,30 +273,32 @@ void initializeStates() {
     assignNextStates();
 }
 
-void stateMachine() {
+void *stateMachine(void *fds) {
+    int inputFd = ((int *) fds)[0];
+    int outputFd = ((int *) fds)[1];
     State *currentState = welcomeState;
     while (1) {
-        printf("%s", currentState->message);
+        write(outputFd, currentState->message, strlen(currentState->message));
 
         if (currentState->handler != NULL) {
-            int nextState = currentState->handler();
+            int nextState = currentState->handler(inputFd, outputFd);
             currentState = currentState->next[nextState];
         } else {
-            int command;
-            scanf("%d", &command);
-
+            char buf[MAX_BUF_LENGTH];
+            readFromFd(inputFd, buf, MAX_BUF_LENGTH - 1);
+            int command = strtol(buf, NULL, 10);
             if (command - 1 == -1) {
-                printf("Good bye!\n");
+                write(outputFd, GOOD_BYE_MSG, strlen(GOOD_BYE_MSG));
                 exit(0);
             }
 
             if (command < 1 || command > currentState->numCommands) {
-                printf("Wrong command!\n\n");
+                write(outputFd, WRONG_COMMAND_MSG, strlen(WRONG_COMMAND_MSG));
                 continue;
             }
             currentState = currentState->next[command - 1];
         }
-        printf("\n");
+        write(outputFd, LINE_BREAKER_MSG, strlen(LINE_BREAKER_MSG));
     }
 }
 
