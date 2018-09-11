@@ -7,4 +7,4 @@ Usage: \
     One command: "./main server" \
     Another command: "nc localhost 4000" ... \
   To run it as console: \
-    command: "./main console" \
+    command: "./main console" 
