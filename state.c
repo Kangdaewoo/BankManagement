@@ -289,7 +289,7 @@ void *stateMachine(void *fds) {
             int command = strtol(buf, NULL, 10);
             if (command - 1 == -1) {
                 write(outputFd, GOOD_BYE_MSG, strlen(GOOD_BYE_MSG));
-                exit(0);
+                break;
             }
 
             if (command < 1 || command > currentState->numCommands) {
@@ -300,6 +300,11 @@ void *stateMachine(void *fds) {
         }
         write(outputFd, LINE_BREAKER_MSG, strlen(LINE_BREAKER_MSG));
     }
+
+    if (outputFd != STDOUT_FILENO && inputFd != STDIN_FILENO) {
+        write(outputFd, "You can now close the connection.\n", 34);
+    }
+    return NULL;
 }
 
 void assignNextStates() {

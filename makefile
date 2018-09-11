@@ -1,7 +1,7 @@
 CFLAGS="-Wall"
 
-console: bank.c bank.h utils.o bank.o state.o server.o
-	gcc $(CFLAGS) -pthread -o console console.c state.o bank.o utils.o server.o
+main: bank.c bank.h utils.o bank.o state.o server.o
+	gcc $(CFLAGS) -pthread -o main main.c state.o bank.o utils.o server.o
 
 server.o: server.c server.h
 	gcc $(CFLAGS) -c server.c
@@ -17,4 +17,4 @@ utils.o: utils.c utils.h
 
 .PHONY: clean
 clean:
-	rm -f *.o console client
+	rm -f *.o main

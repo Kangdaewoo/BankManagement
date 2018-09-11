@@ -11,6 +11,10 @@
 #include "state.h"
 #include "server.h"
 
+#ifndef MAX_BUF_LENGTH
+#define MAX_BUF_LENGTH 80
+#endif
+
 
 /**
  * Based on the sample code from http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html.
@@ -19,10 +23,12 @@
 typedef struct customer {
     int sockFd;
     int outputFd;
+    int inputFd;
     struct customer *next;
 } Customer;
 
 
+fd_set fds;
 Customer *customers;
 
 Customer *findCustomer(int sockFd) {
@@ -33,14 +39,45 @@ Customer *findCustomer(int sockFd) {
     return customer;
 }
 
+void freeCustomer(Customer *customer) {
+    close(customer->sockFd);
+    close(customer->inputFd);
+    close(customer->outputFd);
+    free(customer);
+}
+
+void removeCustomer(int sockFd) {
+    if (customers->sockFd == sockFd) {
+        Customer *tempCustomers = customers->next;
+        freeCustomer(customers);
+        customers = tempCustomers;
+        return;
+    }
+    
+    Customer *prevCustomer = customers;
+    Customer *curCustomer = prevCustomer->next;
+    while (curCustomer->sockFd != sockFd) {
+        prevCustomer = curCustomer;
+        curCustomer = curCustomer->next;
+    }
+
+    prevCustomer->next = curCustomer->next;
+    freeCustomer(curCustomer);
+}
+
 void forwardToStateMachine(int sockFd) {
     Customer *customer = findCustomer(sockFd);
 
     char buf[MAX_BUF_LENGTH];
     int numRead = read(sockFd, buf, MAX_BUF_LENGTH - 1);
-    buf[numRead] = '\0';
-    printf("%s\n", buf);
 
+    if (numRead == 0) {
+        FD_CLR(sockFd, &fds);
+        removeCustomer(sockFd);
+        return;
+    }
+
+    buf[numRead] = '\0';
     write(customer->outputFd, buf, strlen(buf));
 }
 
@@ -48,6 +85,7 @@ void startStateMachine(Customer **customer) {
     int fd[2];
     pipe(fd);
     (*customer)->outputFd = fd[1];
+    (*customer)->inputFd = fd[0];
 
     int argumentFd[2];
     argumentFd[0] = fd[0];
@@ -68,6 +106,8 @@ void addCustomer(int sockFd) {
     newCustomer->sockFd = sockFd;
     newCustomer->next = customers;
     customers = newCustomer;
+
+    printf("Accepting new customer: %d\n", sockFd);
 
     startStateMachine(&newCustomer);
 }
@@ -101,7 +141,7 @@ void startServer() {
 
     customers = NULL;
 
-    fd_set fds, copiedFds;
+    fd_set copiedFds;
     FD_ZERO(&fds);
     FD_SET(sockFd, &fds);
     int maxFd = sockFd;
