@@ -1,3 +1,8 @@
+#ifndef MAX_BUF_LENGTH
+#define MAX_BUF_LENGTH 120
+#endif
+
+
 typedef struct state {
     int numCommands;
     const char *message;

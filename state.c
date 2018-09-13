@@ -8,22 +8,6 @@
 #include "utils.h"
 
 
-State *welcomeState;
-State *signInState;
-State *signUpState;
-State *mainState;
-State *accountInfoState;
-State *depositState;
-State *withdrawState;
-State *transactState;
-State *viewTransactionsState;
-State *signOutState;
-
-unsigned int branchNumber = 0;
-unsigned int accountNumber;
-
-const int MAX_BUF_LENGTH = 120;
-
 const char *WELCOME_MSG = "Welcome!\nIf you have an account, press 1.\nIf you are new, press 2.\nIf you want to quit, press 0\n";
 const char *INVALID_ACCOUNT_NUM_MSG = "Account number verified.\nMoving onto the main menu.\n";
 const char *INVALID_ACCOUNT_MSG = "It's not a valid account number.\nPlease enter again.\n";
@@ -48,6 +32,20 @@ const char *SIGN_OUT_MSG = "Thank you and have a wonderful day.\n";
 const char *GOOD_BYE_MSG = "Good bye!\n";
 const char *WRONG_COMMAND_MSG = "Wrong command!\n\n";
 const char *LINE_BREAKER_MSG = "\n";
+
+unsigned int branchNumber = 0;
+unsigned int accountNumber;
+
+State *welcomeState;
+State *signInState;
+State *signUpState;
+State *mainState;
+State *accountInfoState;
+State *depositState;
+State *withdrawState;
+State *transactState;
+State *viewTransactionsState;
+State *signOutState;
 
 State *createState(int numCommands, const char *message, int (*handler) (int intputFd, int outputFd)) {
     State *newState = malloc(sizeof(State));
@@ -234,6 +232,7 @@ int viewTransactionsHandler(int inputFd, int outputFd) {
         char buf[MAX_BUF_LENGTH];
         readFromFd(inputFd, buf, MAX_BUF_LENGTH - 1);
         int command = strtol(buf, NULL, 10);
+        // Stop showing transactions.
         if (command == 0) {
             return 0;
         }
@@ -273,6 +272,14 @@ void initializeStates() {
     assignNextStates();
 }
 
+/**
+ * Server: multi-threaded
+ *   Runs in a separate thread from the server.
+ *   Directly writes to the client fd.
+ *   Indirectly hears from clients through the server.
+ * Console: single-threaded
+ *   Writes to and reads from standard output and input.
+ * */
 void *stateMachine(void *fds) {
     int inputFd = ((int *) fds)[0];
     int outputFd = ((int *) fds)[1];
@@ -301,6 +308,7 @@ void *stateMachine(void *fds) {
         write(outputFd, LINE_BREAKER_MSG, strlen(LINE_BREAKER_MSG));
     }
 
+    // Let client know they can close. When they close connection, server will free/remove the client.
     if (outputFd != STDOUT_FILENO && inputFd != STDIN_FILENO) {
         write(outputFd, "You can now close the connection.\n", 34);
     }

@@ -19,9 +19,12 @@ pthread_mutex_t accountsLock;
 void initializeBank() {
     customerIndex = MAX_BRANCH_NUM + 1;
     branchIndex = 0;
-    pthread_mutex_init(&(accountsLock), NULL);
+    pthread_mutex_init(&accountsLock, NULL);
 }
 
+/**
+ * 1 = valid, 0 = invalid.
+ * */
 int isValidAccountNumber(unsigned int accountNum) {
     if (accountNum > MAX_BRANCH_NUM && accountNum < customerIndex) {
         return 1;
@@ -31,6 +34,10 @@ int isValidAccountNumber(unsigned int accountNum) {
     return 0;
 }
 
+/**
+ * Account info in string.
+ * Must be freed after used.
+ * */
 char *getAccountInfo(unsigned int accountNum) {
     char *toReturn = malloc(sizeof(char) * MAX_MEMO_LENGTH);
     checkNull(toReturn);
@@ -97,8 +104,11 @@ Transaction *createTransaction(Account *sender, Account *receiver, double amount
     return newTransaction;
 }
 
+/**
+ * Returns 0 if successful, -1 otherwise.
+ * */
 int deposit(unsigned int accountNum, unsigned int branchNum, double amount) {
-    char *memo = malloc(sizeof(char) * MAX_MEMO_LENGTH + 1);
+    char *memo = malloc(sizeof(char) * (MAX_MEMO_LENGTH + 1));
     checkNull(memo);
     sprintf(memo, "Deposited $%.2lf at the branch %x", amount, branchNum);
     memo[MAX_MEMO_LENGTH] = '\0';
@@ -107,6 +117,9 @@ int deposit(unsigned int accountNum, unsigned int branchNum, double amount) {
     return result;
 }
 
+/**
+ * Returns 0 if successful, -1 otherwise.
+ * */
 int withdraw(unsigned int accountNum, unsigned int branchNum, double amount) {
     char *memo = malloc(sizeof(char) * MAX_MEMO_LENGTH + 1);
     checkNull(memo);
@@ -117,6 +130,9 @@ int withdraw(unsigned int accountNum, unsigned int branchNum, double amount) {
     return result;
 }
 
+/**
+ * Returns 0 if successful, -1 otherwise.
+ * */
 int transact(unsigned int from, unsigned int to, double amount) {
     char *memo = malloc(sizeof(char) * MAX_MEMO_LENGTH + 1);
     checkNull(memo);
@@ -127,6 +143,9 @@ int transact(unsigned int from, unsigned int to, double amount) {
     return result;
 }
 
+/**
+ * Returns 0 if successful, -1 otherwise.
+ * */
 int makeTransaction(unsigned int from, unsigned int to, double amount, char *memo) {
     Account *sender = findAccount(from);
     Account *receiver = findAccount(to);
@@ -142,6 +161,9 @@ int makeTransaction(unsigned int from, unsigned int to, double amount, char *mem
     return 0;
 }
 
+/**
+ * Returns 0 if successful, -1 otherwise.
+ * */
 int send(Account *sender, double amount) {
     pthread_mutex_lock(&(sender->lock));
     if (sender->amount >= amount) {
@@ -155,6 +177,9 @@ int send(Account *sender, double amount) {
     return 0;
 }
 
+/**
+ * Always successful.
+ * */
 int receive(Account *receiver, double amount) {
     pthread_mutex_lock(&(receiver->lock));
     receiver->amount += amount;

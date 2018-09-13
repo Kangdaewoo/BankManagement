@@ -20,7 +20,7 @@ typedef struct transaction {
 typedef struct account {
     unsigned int number;
     char name[MAX_NAME_LENGTH + 1];
-    char password[MAX_NAME_LENGTH + 1]; // For now.
+    char password[MAX_NAME_LENGTH + 1]; 
     double amount;
     struct transaction *lastTransaction;
     pthread_mutex_t lock;
@@ -28,13 +28,24 @@ typedef struct account {
 
 
 void initializeBank();
+
 int isValidAccountNumber(unsigned int accountNum);
-char *getAccountInfo(unsigned int accountNum);
+int isCorrectPassword(unsigned int accountNum, char *password);
+
 Account *findAccount(unsigned int accountNum);
+/**
+ * Account info in string.
+ * Must be freed after used.
+ * */
+char *getAccountInfo(unsigned int accountNum);
+Transaction *getTransactions(unsigned int accountNum);
+
 unsigned int createAccount(char *name, char *password, int isBranch);
 Transaction *createTransaction(Account *sender, Account *receiver, double amount, char *memo);
+
+/**
+ * Returns 0 if successful, -1 otherwise.
+ * */
 int deposit(unsigned int accountNum, unsigned int branchNum, double amount);
 int withdraw(unsigned int accountNum, unsigned int branchNum, double amount);
 int transact(unsigned int from, unsigned int to, double amount);
-int isCorrectPassword(unsigned int accountNum, char *password);
-Transaction *getTransactions(unsigned int accountNum);

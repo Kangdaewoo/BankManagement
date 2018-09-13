@@ -12,7 +12,7 @@
 #include "server.h"
 
 #ifndef MAX_BUF_LENGTH
-#define MAX_BUF_LENGTH 80
+#define MAX_BUF_LENGTH 120
 #endif
 
 
@@ -65,12 +65,16 @@ void removeCustomer(int sockFd) {
     freeCustomer(curCustomer);
 }
 
+/**
+ * State machine(running in another thread) will take care of any user inputs.
+ * */
 void forwardToStateMachine(int sockFd) {
     Customer *customer = findCustomer(sockFd);
 
     char buf[MAX_BUF_LENGTH];
     int numRead = read(sockFd, buf, MAX_BUF_LENGTH - 1);
 
+    // Connection lost.
     if (numRead == 0) {
         FD_CLR(sockFd, &fds);
         removeCustomer(sockFd);
@@ -81,6 +85,10 @@ void forwardToStateMachine(int sockFd) {
     write(customer->outputFd, buf, strlen(buf));
 }
 
+/**
+ * Start state machine in a new thread.
+ * Communicate with the state machine with a pipe.
+ * */
 void startStateMachine(Customer **customer) {
     int fd[2];
     pipe(fd);
@@ -112,6 +120,9 @@ void addCustomer(int sockFd) {
     startStateMachine(&newCustomer);
 }
 
+/**
+ * Based on the sample code from http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html.
+ * */
 void startServer() {
     int sockFd, newSockFd;
     socklen_t client;
@@ -138,7 +149,6 @@ void startServer() {
     listen(sockFd, 5);
 
     client = sizeof(clientAddr);
-
     customers = NULL;
 
     fd_set copiedFds;
