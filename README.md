@@ -1,4 +1,5 @@
 # BankManagement
+An imitation of phone banking.
 
 ## How to run: 
   First compile with "make". 
