@@ -11,3 +11,6 @@ An imitation of phone banking.
     
   ### To run it as console: 
     command: "./main console" 
+
+### Tutorial that I visited in making server:
+http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
