@@ -1,7 +1,7 @@
 CFLAGS="-Wall"
 
 main: main.c utils.o bank.o state.o server.o
-	gcc $(CFLAGS) -pthread -o $@ $< $^
+	gcc $(CFLAGS) -pthread -o $@ $^
 
 server.o: server.c server.h
 	gcc $(CFLAGS) -c $<
