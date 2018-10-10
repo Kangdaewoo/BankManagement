@@ -1,19 +1,19 @@
 CFLAGS="-Wall"
 
-main: bank.c bank.h utils.o bank.o state.o server.o
-	gcc $(CFLAGS) -pthread -o main main.c state.o bank.o utils.o server.o
+main: main.c utils.o bank.o state.o server.o
+	gcc $(CFLAGS) -pthread -o $@ $< $^
 
 server.o: server.c server.h
-	gcc $(CFLAGS) -c server.c
+	gcc $(CFLAGS) -c $<
 
 state.o: state.c state.h
-	gcc $(CFLAGS) -c state.c
+	gcc $(CFLAGS) -c $<
 
 bank.o: bank.c bank.h
-	gcc $(CFLAGS) -c bank.c
+	gcc $(CFLAGS) -c $<
 
 utils.o: utils.c utils.h
-	gcc $(CFLAGS) -c utils.c
+	gcc $(CFLAGS) -c $<
 
 .PHONY: clean
 clean:
